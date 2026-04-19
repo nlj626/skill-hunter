@@ -37,19 +37,8 @@ cp SKILL.md ~/.agents/skills/skill-hunter/SKILL.md
 ```
 skill-hunter/
 ├── SKILL.md              # Skill 定义文件（核心产物）
-├── test/                 # 自测脚本
-│   └── test_search.sh    # 搜索功能测试
-├── docs/
-│   └── CHANGELOG.md      # 变更日志
 ├── LICENSE               # MIT 协议
 └── README.md
-```
-
-## 开发
-
-```bash
-# 自测
-bash test/test_search.sh [关键词]
 ```
 
 ## 协议
@@ -97,19 +86,8 @@ Examples:
 ```
 skill-hunter/
 ├── SKILL.md              # Core skill definition
-├── test/                 # Self-test scripts
-│   └── test_search.sh    # Search functionality tests
-├── docs/
-│   └── CHANGELOG.md      # Changelog
 ├── LICENSE               # MIT License
 └── README.md
-```
-
-### Development
-
-```bash
-# Run self-tests
-bash test/test_search.sh [keyword]
 ```
 
 ### License
