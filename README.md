@@ -1,6 +1,6 @@
 # Skill Hunter
 
-全渠道 Claude Code Skill 搜索器 — 覆盖 6 大渠道、88,000+ Skill，搜索结果按可信度排序并支持一键安装。
+全渠道 Claude Code Skill 搜索器 — 覆盖 6 大渠道、880,000+ Skill，搜索结果按可信度排序并支持一键安装。
 
 ---
 
@@ -26,7 +26,7 @@ cp SKILL.md ~/.agents/skills/skill-hunter/SKILL.md
 
 | 特性 | 说明 |
 |------|------|
-| 多渠道搜索 | GitHub API (88K+)、skills.sh、awesome 列表、ClawHub、SkillsMP |
+| 多渠道搜索 | GitHub API (880K+)、skills.sh、awesome 列表、ClawHub、SkillsMP |
 | 可信度排序 | 按仓库 stars 分级：官方 > 高信誉 > 良好 > 一般 |
 | Stars 显示 | 展示结果的 top 10 都显示 stars 数值 |
 | 本地去重 | 自动过滤已安装的 Skill |
@@ -60,7 +60,7 @@ bash test/test_search.sh [关键词]
 
 ## English
 
-A multi-channel Claude Code Skill search tool — covering 6 channels, 88,000+ skills, with credibility-ranked results and one-click installation.
+A multi-channel Claude Code Skill search tool — covering 6 channels, 880,000+ skills, with credibility-ranked results and one-click installation.
 
 ---
 
@@ -86,7 +86,7 @@ Examples:
 
 | Feature | Description |
 |---------|-------------|
-| Multi-channel Search | GitHub API (88K+), skills.sh, awesome lists, ClawHub, SkillsMP |
+| Multi-channel Search | GitHub API (880K+), skills.sh, awesome lists, ClawHub, SkillsMP |
 | Credibility Ranking | Stars-based tiers: Official > Trusted > Good > Average |
 | Stars Display | Top 10 results always show star counts |
 | Local Dedup | Automatically filters out already-installed skills |
