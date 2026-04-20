@@ -6,6 +6,14 @@
 
 ## 安装
 
+**方式一：使用 npx（推荐）**
+
+```bash
+npx skills add nlj626/skill-hunter -g
+```
+
+**方式二：手动复制**
+
 将 `SKILL.md` 复制到本地 skills 目录：
 
 ```bash
@@ -54,6 +62,14 @@ A multi-channel Claude Code Skill search tool — covering 6 channels, 880,000+ 
 ---
 
 ### Installation
+
+**Option 1: Using npx (Recommended)**
+
+```bash
+npx skills add nlj626/skill-hunter -g
+```
+
+**Option 2: Manual copy**
 
 Copy `SKILL.md` to your local skills directory:
 
