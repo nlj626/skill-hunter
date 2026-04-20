@@ -6,29 +6,19 @@
 
 ## 安装
 
-**方式一：使用 npx（推荐，跨平台）**：
-```bash
-npx skills add nlj626/skill-hunter -g -a claude-code
-```
+| 方式 | 命令 | 平台 | 说明 |
+|------|------|------|------|
+| npx（推荐） | `npx skills add nlj626/skill-hunter -g -a claude-code` | 全平台 | 自动安装到 `~/.claude/skills/` |
+| 手动 macOS / Linux | `mkdir -p ~/.claude/skills/skill-hunter && cp SKILL.md ~/.claude/skills/skill-hunter/` | macOS / Linux | 手动复制到 skills 目录 |
+| 手动 Windows | 见下方代码块 | Windows | 手动复制到 skills 目录 |
 
-> 自动安装到 `~/.claude/skills/`，Windows / macOS / Linux 均可用。必须带 `-a claude-code` 参数，否则可能安装到错误路径导致无法识别。Windows 用户如遇 symlink 权限问题，可加 `--copy`：`npx skills add nlj626/skill-hunter -g -a claude-code --copy`
-
-**方式二：手动安装**：
-
-将 `SKILL.md` 复制到 Claude Code 的 skills 目录：
-
-**macOS / Linux**：
-```bash
-mkdir -p ~/.claude/skills/skill-hunter && cp SKILL.md ~/.claude/skills/skill-hunter/
-```
-
-**Windows (PowerShell)**：
+**Windows 手动安装**（PowerShell）：
 ```powershell
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills\skill-hunter"
 Copy-Item SKILL.md "$env:USERPROFILE\.claude\skills\skill-hunter\"
 ```
 
-> **注意**：skill 文件必须放在 `~/.claude/skills/` 目录下，Claude Code 才能识别。不要使用 `~/.agents/skills/`。
+> **注意**：npx 方式必须带 `-a claude-code` 参数，否则可能安装到错误路径导致无法识别。Windows 用户如遇 symlink 权限问题，可加 `--copy`：`npx skills add nlj626/skill-hunter -g -a claude-code --copy`。skill 文件必须放在 `~/.claude/skills/` 目录下，Claude Code 才能识别。
 
 ## 使用
 
@@ -73,29 +63,19 @@ A multi-channel Claude Code Skill search tool — covering 6 channels, 880,000+ 
 
 ### Installation
 
-**Option 1: Using npx (Recommended, cross-platform)**:
-```bash
-npx skills add nlj626/skill-hunter -g -a claude-code
-```
+| Method | Command | Platform | Description |
+|--------|---------|----------|-------------|
+| npx (Recommended) | `npx skills add nlj626/skill-hunter -g -a claude-code` | All | Auto-installs to `~/.claude/skills/` |
+| Manual macOS / Linux | `mkdir -p ~/.claude/skills/skill-hunter && cp SKILL.md ~/.claude/skills/skill-hunter/` | macOS / Linux | Copy to skills directory |
+| Manual Windows | See code block below | Windows | Copy to skills directory |
 
-> Installs to `~/.claude/skills/` automatically. Works on Windows / macOS / Linux. The `-a claude-code` flag is required — without it, the skill may be installed to the wrong path and won't be detected. Windows users experiencing symlink permission issues can add `--copy`: `npx skills add nlj626/skill-hunter -g -a claude-code --copy`
-
-**Option 2: Manual install**:
-
-Copy `SKILL.md` to Claude Code's skills directory:
-
-**macOS / Linux**:
-```bash
-mkdir -p ~/.claude/skills/skill-hunter && cp SKILL.md ~/.claude/skills/skill-hunter/
-```
-
-**Windows (PowerShell)**:
+**Manual Windows install** (PowerShell):
 ```powershell
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills\skill-hunter"
 Copy-Item SKILL.md "$env:USERPROFILE\.claude\skills\skill-hunter\"
 ```
 
-> **Note**: The skill file must be placed under `~/.claude/skills/` for Claude Code to detect it. Do not use `~/.agents/skills/`.
+> **Note**: The `-a claude-code` flag is required for npx — without it, the skill may be installed to the wrong path. Windows users experiencing symlink permission issues can add `--copy`: `npx skills add nlj626/skill-hunter -g -a claude-code --copy`. The skill file must be placed under `~/.claude/skills/` for Claude Code to detect it.
 
 ### Usage
 
