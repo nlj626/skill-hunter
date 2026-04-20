@@ -8,10 +8,10 @@
 
 **方式一：使用 npx（推荐，跨平台）**：
 ```bash
-npx skills add nlj626/skill-hunter -g
+npx skills add nlj626/skill-hunter -g -a claude-code
 ```
 
-> 自动检测 Claude Code 并安装到正确路径，Windows / macOS / Linux 均可用。Windows 用户如遇 symlink 权限问题，可使用 `npx skills add nlj626/skill-hunter -g --copy`。
+> 自动安装到 `~/.claude/skills/`，Windows / macOS / Linux 均可用。必须带 `-a claude-code` 参数，否则可能安装到错误路径导致无法识别。Windows 用户如遇 symlink 权限问题，可加 `--copy`：`npx skills add nlj626/skill-hunter -g -a claude-code --copy`
 
 **方式二：手动安装**：
 
@@ -75,10 +75,10 @@ A multi-channel Claude Code Skill search tool — covering 6 channels, 880,000+ 
 
 **Option 1: Using npx (Recommended, cross-platform)**:
 ```bash
-npx skills add nlj626/skill-hunter -g
+npx skills add nlj626/skill-hunter -g -a claude-code
 ```
 
-> Automatically detects Claude Code and installs to the correct path. Works on Windows / macOS / Linux. Windows users experiencing symlink permission issues can use `npx skills add nlj626/skill-hunter -g --copy`.
+> Installs to `~/.claude/skills/` automatically. Works on Windows / macOS / Linux. The `-a claude-code` flag is required — without it, the skill may be installed to the wrong path and won't be detected. Windows users experiencing symlink permission issues can add `--copy`: `npx skills add nlj626/skill-hunter -g -a claude-code --copy`
 
 **Option 2: Manual install**:
 
