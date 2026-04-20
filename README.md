@@ -6,19 +6,29 @@
 
 ## 安装
 
-**方式一：使用 npx（推荐）**
-
+**方式一：使用 npx（推荐，跨平台）**：
 ```bash
 npx skills add nlj626/skill-hunter -g
 ```
 
-**方式二：手动复制**
+> 自动检测 Claude Code 并安装到正确路径，Windows / macOS / Linux 均可用。Windows 用户如遇 symlink 权限问题，可使用 `npx skills add nlj626/skill-hunter -g --copy`。
 
-将 `SKILL.md` 复制到本地 skills 目录：
+**方式二：手动安装**：
 
+将 `SKILL.md` 复制到 Claude Code 的 skills 目录：
+
+**macOS / Linux**：
 ```bash
-cp SKILL.md ~/.agents/skills/skill-hunter/SKILL.md
+mkdir -p ~/.claude/skills/skill-hunter && cp SKILL.md ~/.claude/skills/skill-hunter/
 ```
+
+**Windows (PowerShell)**：
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills\skill-hunter"
+Copy-Item SKILL.md "$env:USERPROFILE\.claude\skills\skill-hunter\"
+```
+
+> **注意**：skill 文件必须放在 `~/.claude/skills/` 目录下，Claude Code 才能识别。不要使用 `~/.agents/skills/`。
 
 ## 使用
 
@@ -63,19 +73,29 @@ A multi-channel Claude Code Skill search tool — covering 6 channels, 880,000+ 
 
 ### Installation
 
-**Option 1: Using npx (Recommended)**
-
+**Option 1: Using npx (Recommended, cross-platform)**:
 ```bash
 npx skills add nlj626/skill-hunter -g
 ```
 
-**Option 2: Manual copy**
+> Automatically detects Claude Code and installs to the correct path. Works on Windows / macOS / Linux. Windows users experiencing symlink permission issues can use `npx skills add nlj626/skill-hunter -g --copy`.
 
-Copy `SKILL.md` to your local skills directory:
+**Option 2: Manual install**:
 
+Copy `SKILL.md` to Claude Code's skills directory:
+
+**macOS / Linux**:
 ```bash
-cp SKILL.md ~/.agents/skills/skill-hunter/SKILL.md
+mkdir -p ~/.claude/skills/skill-hunter && cp SKILL.md ~/.claude/skills/skill-hunter/
 ```
+
+**Windows (PowerShell)**:
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills\skill-hunter"
+Copy-Item SKILL.md "$env:USERPROFILE\.claude\skills\skill-hunter\"
+```
+
+> **Note**: The skill file must be placed under `~/.claude/skills/` for Claude Code to detect it. Do not use `~/.agents/skills/`.
 
 ### Usage
 

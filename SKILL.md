@@ -86,8 +86,8 @@ site:skillsmp.com [query] claude skill
 ### 渠道 6：本地已安装
 
 ```bash
-ls ~/.agents/skills/ 2>/dev/null
-cat ~/.agents/.skill-lock.json 2>/dev/null
+ls ~/.claude/skills/ 2>/dev/null
+cat ~/.claude/skills/.skill-lock.json 2>/dev/null
 ```
 
 ---
@@ -105,7 +105,7 @@ cat ~/.agents/.skill-lock.json 2>/dev/null
 1. **GitHub API 搜索** — `gh api` 获取 10 条结果
 2. **WebSearch 并行** — awesome + OpenClaw + SkillsMP 同时搜索
 3. **skills.sh** — `npx skills find`（超时则跳过）
-4. **本地检查** — `ls ~/.agents/skills/` + `.skill-lock.json`
+4. **本地检查** — `ls ~/.claude/skills/` + `.skill-lock.json`
 
 结果合并去重后进入筛选环节。
 
@@ -212,31 +212,34 @@ npx skills add [package] -g
 
 **方式 B — GitHub 仓库的子路径 skill**：
 ```bash
+# 创建临时目录（跨平台兼容）
+tmpdir=$(mktemp -d 2>/dev/null || mkdir -p "$TMPDIR/skill-install-[name]" && echo "$TMPDIR/skill-install-[name]")
 # 使用 sparse clone 仅下载 skill 子目录
-git clone --filter=blob:none --sparse --depth=1 https://github.com/[owner]/[repo].git /tmp/skill-install-[name]
-cd /tmp/skill-install-[name]
+git clone --filter=blob:none --sparse --depth=1 https://github.com/[owner]/[repo].git "$tmpdir"
+cd "$tmpdir"
 git sparse-checkout set [skill-path]
-# 复制到本地
-cp -r [skill-path] ~/.agents/skills/[skill-name]/
+# 复制到本地（跨平台兼容）
+mkdir -p ~/.claude/skills/[skill-name] && cp -r [skill-path]/. ~/.claude/skills/[skill-name]/
 # 清理
-rm -rf /tmp/skill-install-[name]
+rm -rf "$tmpdir"
 ```
 
 **方式 C — GitHub 仓库根目录 skill**：
 ```bash
-git clone --depth=1 https://github.com/[owner]/[repo].git /tmp/skill-install-[name]
-cp -r /tmp/skill-install-[name]/SKILL.md ~/.agents/skills/[skill-name]/
-rm -rf /tmp/skill-install-[name]
+tmpdir=$(mktemp -d 2>/dev/null || mkdir -p "$TMPDIR/skill-install-[name]" && echo "$TMPDIR/skill-install-[name]")
+git clone --depth=1 https://github.com/[owner]/[repo].git "$tmpdir"
+mkdir -p ~/.claude/skills/[skill-name] && cp "$tmpdir/SKILL.md" ~/.claude/skills/[skill-name]/
+rm -rf "$tmpdir"
 ```
 
 安装后验证：
 ```bash
-ls ~/.agents/skills/[skill-name]/SKILL.md
+ls ~/.claude/skills/[skill-name]/SKILL.md
 ```
 
 ### 第三步：更新 .skill-lock.json
 
-安装成功后，将 skill 信息写入 `~/.agents/.skill-lock.json`。
+安装成功后，将 skill 信息写入 `~/.claude/skills/.skill-lock.json`。
 
 ### 安装后提示
 
