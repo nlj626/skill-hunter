@@ -65,7 +65,7 @@ gh api "search/code?q=[query]+filename:SKILL.md+allowed-tools&per_page=10" \
   --jq '.items[] | "\(.repository.full_name)|\(.path)"'
 ```
 
-**覆盖**：36,000+ skill。**降级**：`gh` 未登录或限流 → WebSearch `github "SKILL.md" claude skill [query]`
+**覆盖**：880,000+ skill。**降级**：`gh` 未登录或限流 → WebSearch `github "SKILL.md" claude skill [query]`
 
 ### 渠道 2：skills.sh
 
@@ -207,7 +207,7 @@ done
 
 **方式 A — skills.sh 注册的包（优先）**：
 ```bash
-npx skills add [package] -g
+npx skills add [package] -g -a claude-code
 ```
 
 **方式 B — GitHub 仓库的子路径 skill**：
@@ -266,7 +266,7 @@ ls ~/.claude/skills/[skill-name]/SKILL.md
 | 特性 | find-skills | skill-hunter |
 |------|------------|-------------|
 | 搜索渠道 | skills.sh（单源） | 6 渠道并行 |
-| GitHub 搜索 | ❌ | ✅ `gh api` 覆盖 36K+ |
+| GitHub 搜索 | ❌ | ✅ `gh api` 覆盖 880K+ |
 | Stars 显示 | ❌ | ✅ top 10 都显示 |
 | Token 消耗 | 低 | 中（已优化） |
 | 本地去重 | ❌ | ✅ |
