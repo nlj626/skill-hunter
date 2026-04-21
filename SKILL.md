@@ -10,152 +10,55 @@ allowed-tools:
 
 # Skill Hunter — 全渠道 Claude Code Skill 搜索器
 
-你是一个专业的 Skill 搜索助手。工作流程分两阶段：**搜索展示 → 用户选择 → 安装**。
+工作流程：**搜索展示 → 用户选择 → 安装**。安全审查不在本 skill 职责范围内，建议使用 `skill-vetter`。
 
-安全审查不在此 skill 的职责范围内。如用户需要审查某个 skill 的安全性，建议使用 `skill-vetter` skill。
+## 搜索执行
 
-## 触发条件
+**并行执行**（无 Agent，减少 token）：
 
-当用户：
-- 明确调用 `/skill-hunter [关键词]`
-- 询问"有没有能做 X 的 skill"、"帮我找个 skill"
-- 想要全面发现某个领域的新 skill
-- 对 find-skills 的结果不满意，想要更多选择
+### 1. 解析关键词
 
-## 搜索模式
+从用户描述中提取中英文搜索关键词。短关键词（<4 字符）自动扩展同义词：
+- 规则：单个英文 < 4 字符 → 补 2-3 同义词用 `+` 连接；中文 → 同时准备英文翻译
+- 示例：`prd` → `PRD+product+requirement+specification`，`db` → `database+sql+sqlite+mysql`
 
-全量搜索，目标 **30 秒内**出结果（主流程并行执行，无 Agent）：
-1. GitHub API + skills.sh + WebSearch 并行搜索
-2. 合并去重后筛选 top 10
-3. 批量查询 stars（单次脚本）
-4. 本地已安装交叉检查
+### 2. 并行搜索（4 路同时发起）
 
-## 关键词策略
+| 渠道 | 命令 | 降级 |
+|------|------|------|
+| GitHub API（核心） | `gh api "search/code?q=[query]+filename:SKILL.md+allowed-tools&per_page=10" --jq '.items[] | "\(.repository.full_name)\|\(.path)\|\(.repository.stargazers_count)"'` | WebSearch `github "SKILL.md" claude skill [query]` |
+| skills.sh | `npx skills find "[query]" 2>&1 \| head -30` | 超时 → WebSearch `site:skills.sh [query]` |
+| WebSearch×3 | `awesome claude skills [query] 2026`、`openclaw skill [query] github`、`site:skillsmp.com [query] claude skill` | — |
+| 本地已安装 | `ls ~/.claude/skills/` + `cat ~/.claude/skills/.skill-lock.json` | — |
 
-### 提取关键词
+> GitHub API 的 `search/code` 返回 `repository.stargazers_count`，一次调用即可获取 stars，无需额外查询。
 
-从用户描述中提取中英文搜索关键词。用户可能用中文描述需求（如"帮我找个写 PRD 的 skill"），需同时提取中文关键词和对应的英文关键词。
+### 3. 补充 stars（仅非 GitHub 渠道结果）
 
-### 短关键词自动扩展
+对缺少 stars 的仓库，优先 `gh api "repos/$r" --jq '.stargazers_count'`，`gh` 不可用时 WebSearch `"[repo] github stars"` 提取。
 
-GitHub Code Search API 对短关键词（<4 字符）容易返回 404 或结果过少。遇到短关键词时，自动补充同义词和英文变体：
+### 4. 筛选排序
 
-| 用户输入 | 扩展后搜索词 |
-|---------|------------|
-| `prd` | `PRD+product+requirement+specification` |
-| `git` | `git+commit+version+control` |
-| `db` | `database+sql+sqlite+mysql` |
-| `ai` | `AI+artificial+intelligence+LLM` |
-| `docker` | `docker+container+devops` |
+1. 去掉已安装 → 仅在"已安装"区域展示
+2. 过滤不相关 → 文件名碰巧含关键词但功能不匹配的
+3. 按 stars 排序 → 取 top 10
 
-扩展规则：
-1. 单个英文单词 < 4 字符 → 补充 2-3 个同义词，用 `+` 连接
-2. 中文关键词 → 同时准备对应英文翻译
-3. 不确定时宁多勿少，靠后续筛选环节过滤不相关结果
+**可信度分级**（同时用于筛选和输出展示）：
 
----
+| 等级 | 标识 | 条件 |
+|------|------|------|
+| 官方 | 🟢🟢 | anthropics、vercel-labs、microsoft |
+| 高信誉 | 🟢 | stars > 1000 或安装量 > 10K |
+| 良好 | 🟡 | stars 100-1000，安装量 > 1K，或 awesome 收录 |
+| 一般 | 🔵 | stars < 100 或无数据 |
 
-## 搜索渠道详情
+> stars 为仓库级别，非 skill 自身。同一仓库的多个 skill 共享 stars 数值。
 
-### 渠道 1：GitHub API（核心渠道）
+筛选后 0 个 → 放宽纳入 🔵（最多 3 个，标注"质量较低"）。超出上限 → 展示 top N + "还有 M 个，需要请告知"。
 
-```bash
-# 搜索 skill 文件，per_page=10 减少返回量
-gh api "search/code?q=[query]+filename:SKILL.md+allowed-tools&per_page=10" \
-  --jq '.items[] | "\(.repository.full_name)|\(.path)"'
-```
+### 5. 格式化输出
 
-**覆盖**：880,000+ skill。**降级**：`gh` 未登录或限流 → WebSearch `github "SKILL.md" claude skill [query]`
-
-### 渠道 2：skills.sh
-
-```bash
-npx skills find "[query]" 2>&1 | head -30
-```
-
-**降级**：超时 → WebSearch `site:skills.sh [query]`
-
-### 渠道 3-5：WebSearch 并行
-
-```
-awesome claude skills [query] 2026
-openclaw skill [query] github
-site:skillsmp.com [query] claude skill
-```
-
-### 渠道 6：本地已安装
-
-```bash
-ls ~/.claude/skills/ 2>/dev/null
-cat ~/.claude/skills/.skill-lock.json 2>/dev/null
-```
-
----
-
-## 阶段一：搜索与展示
-
-### 第一步：解析需求
-
-从用户描述中提取中英文搜索关键词。应用短关键词扩展规则。
-
-### 第二步：搜索执行
-
-**主流程并行执行**（无 Agent，减少 token）：
-
-1. **GitHub API 搜索** — `gh api` 获取 10 条结果
-2. **WebSearch 并行** — awesome + OpenClaw + SkillsMP 同时搜索
-3. **skills.sh** — `npx skills find`（超时则跳过）
-4. **本地检查** — `ls ~/.claude/skills/` + `.skill-lock.json`
-
-结果合并去重后进入筛选环节。
-
-### 第三步：批量查询 stars
-
-对筛选后的 top 10 仓库名，单次脚本批量查询：
-
-```bash
-# 提取去重仓库名列表
-repos=$(echo "$results" | cut -d'|' -f1 | sort -u | head -10)
-
-# 批量查询 stars（单次 Bash 调用，减少 token）
-for r in $repos; do
-  stars=$(gh api "repos/$r" --jq '.stargazers_count' 2>/dev/null || echo "未知")
-  echo "$r|$stars"
-done
-```
-
-> **所有最终展示的 top 10 skill 都必须显示 stars 数值**。
-
-### 第四步：筛选与排序
-
-**核心原则：少而精，top 10 都有 stars。**
-
-1. **去掉已安装的** — 只在"已安装"区域展示
-2. **过滤不相关** — 文件名碰巧含关键词但功能不匹配的，过滤
-3. **按 stars 排序** — 取 top 10，确保每条都有 stars 数据
-4. **可信度标注** — 根据 stars 分级
-
-| 等级 | 标识 | 条件 | 展示 |
-|------|------|------|------|
-| 官方 | 🟢🟢 | anthropics、vercel-labs、microsoft | ✅ |
-| 高信誉 | 🟢 | 仓库 stars > 1000 或安装量 > 10K | ✅ |
-| 良好 | 🟡 | 仓库 stars 100-1000，安装量 > 1K，或 awesome 收录 | ✅ |
-| 一般 | 🔵 | 仓库 stars < 100 或无数据 | ❌ |
-| 未知 | ⚪ | 无数据 | ❌ |
-
-> **注意**：stars 数据来自 GitHub 仓库级别，不是 skill 自身的数据。一个高 stars 仓库可能包含多个 skill，该仓库的所有 skill 共享同一个 stars 数值。
-
-筛选后 0 个 → 放宽纳入 🔵，最多 3 个，标注"质量较低"。
-筛选后超出上限 → 展示 top N，末尾加"还有 M 个，需要请告知"。
-
-### 第五步：格式化输出
-
-**可信度标识说明**（在表格前展示）：
-- 🟢🟢 官方：来自 anthropics、vercel-labs、microsoft 等官方仓库
-- 🟢 高信誉：仓库 stars > 1000 或安装量 > 10K
-- 🟡 良好：仓库 stars 100-1000，安装量 > 1K，或 awesome 收录
-- 🔵 一般：仓库 stars < 100 或无数据
-- ⚪ 未知：无数据
+**对齐规则**：表格使用 Unicode box-drawing（`┌─┬─┐│├─┼─┤└─┴─┘`），按显示宽度对齐（CJK/Emoji 占 2 列，ASCII 占 1 列）。先计算每列最大宽度，再统一左对齐。
 
 ```
 ═══════════════════════════════════════════════════
@@ -165,33 +68,35 @@ done
 
 ## 已安装
 
-| Skill | 来源 |
-|-------|------|
-| write-a-prd | mattpocock/skills |
+┌──────────────┬────────────────────────┐
+│ Skill        │ 来源                   │
+├──────────────┼────────────────────────┤
+│ write-a-prd  │ mattpocock/skills      │
+└──────────────┴────────────────────────┘
 
 ## 未安装
 
-| # | Skill | 来源 | Stars | 可信度 | 描述 |
-|---|-------|------|-------|--------|------|
-| 1 | prd | Mehdibargach/... | 87⭐ | 🟡 | 精简结构化 PRD 生成 |
-| 2 | easy-prd | instantX-research/... | 11⭐ | 🔵 | 简易 PRD |
+┌────┬──────────────┬──────────────────────┬────────┬────────┬──────────────────────────────┐
+│ #  │ Skill        │ 来源                 │ Stars  │ 可信度 │ 描述                         │
+├────┼──────────────┼──────────────────────┼────────┼────────┼──────────────────────────────┤
+│  1 │ prd          │ Mehdibargach/...      │  87 ⭐  │  🟡    │ 精简结构化 PRD 生成            │
+│  2 │ easy-prd     │ instantX-research/... │  11 ⭐  │  🔵    │ 简易 PRD                     │
+└────┴──────────────┴──────────────────────┴────────┴────────┴──────────────────────────────┘
 
 输入编号选择要安装的 skill（多选用逗号，如 1,3），或输入 q 退出。
 
 ═══════════════════════════════════════════════════
 ```
 
-> **已安装的 skill 必须排在最前面**，让用户一眼看到"我已经有了什么，还缺什么"。
+> **已安装的 skill 必须排在最前面**。
 
 ---
 
-## 阶段二：安装
+## 安装
 
-**触发条件**：用户输入了编号（如 `1` 或 `1,3`）。
+**触发**：用户输入编号（如 `1` 或 `1,3`）。
 
-### 第一步：确认安装列表
-
-展示用户选择的 skill 列表和对应的安装命令，确认后执行：
+### 1. 确认列表
 
 ```
 即将安装以下 skill：
@@ -201,30 +106,20 @@ done
 确认安装？（y/n）
 ```
 
-### 第二步：执行安装
+### 2. 执行安装
 
-根据 skill 来源选择安装方式：
+**方式 A — skills.sh 包（优先）**：`npx skills add [package] -g -a claude-code`
 
-**方式 A — skills.sh 注册的包（优先）**：
+**方式 B — GitHub 子路径 skill**：
 ```bash
-npx skills add [package] -g -a claude-code
-```
-
-**方式 B — GitHub 仓库的子路径 skill**：
-```bash
-# 创建临时目录（跨平台兼容）
 tmpdir=$(mktemp -d 2>/dev/null || mkdir -p "$TMPDIR/skill-install-[name]" && echo "$TMPDIR/skill-install-[name]")
-# 使用 sparse clone 仅下载 skill 子目录
 git clone --filter=blob:none --sparse --depth=1 https://github.com/[owner]/[repo].git "$tmpdir"
-cd "$tmpdir"
-git sparse-checkout set [skill-path]
-# 复制到本地（跨平台兼容）
+cd "$tmpdir" && git sparse-checkout set [skill-path]
 mkdir -p ~/.claude/skills/[skill-name] && cp -r [skill-path]/. ~/.claude/skills/[skill-name]/
-# 清理
 rm -rf "$tmpdir"
 ```
 
-**方式 C — GitHub 仓库根目录 skill**：
+**方式 C — GitHub 根目录 skill**：
 ```bash
 tmpdir=$(mktemp -d 2>/dev/null || mkdir -p "$TMPDIR/skill-install-[name]" && echo "$TMPDIR/skill-install-[name]")
 git clone --depth=1 https://github.com/[owner]/[repo].git "$tmpdir"
@@ -232,21 +127,12 @@ mkdir -p ~/.claude/skills/[skill-name] && cp "$tmpdir/SKILL.md" ~/.claude/skills
 rm -rf "$tmpdir"
 ```
 
-安装后验证：
-```bash
-ls ~/.claude/skills/[skill-name]/SKILL.md
-```
+安装后验证 `ls ~/.claude/skills/[skill-name]/SKILL.md`，成功后更新 `~/.claude/skills/.skill-lock.json`。
 
-### 第三步：更新 .skill-lock.json
-
-安装成功后，将 skill 信息写入 `~/.claude/skills/.skill-lock.json`。
-
-### 安装后提示
+### 3. 安装后提示
 
 ```
-✅ 安装完成！
-
-提示：如需安全审查这些 skill，可使用 /skill-vetter 进行扫描。
+✅ 安装完成！如需安全审查，可使用 /skill-vetter 进行扫描。
 ```
 
 ---
@@ -260,13 +146,3 @@ ls ~/.claude/skills/[skill-name]/SKILL.md
 | git clone 超时 | `--depth=1` + `--filter=blob:none` |
 | 安装失败 | 提示手动安装，给出 GitHub 链接 |
 | 无结果 | 建议：换关键词 或 `npx skills init` 自建 |
-
-## 与 find-skills 的区别
-
-| 特性 | find-skills | skill-hunter |
-|------|------------|-------------|
-| 搜索渠道 | skills.sh（单源） | 6 渠道并行 |
-| GitHub 搜索 | ❌ | ✅ `gh api` 覆盖 880K+ |
-| Stars 显示 | ❌ | ✅ top 10 都显示 |
-| Token 消耗 | 低 | 中（已优化） |
-| 本地去重 | ❌ | ✅ |
