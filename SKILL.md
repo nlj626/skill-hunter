@@ -18,39 +18,58 @@ allowed-tools:
 
 ### 1. 解析关键词
 
-从用户描述中提取中英文搜索关键词。短关键词（<4 字符）自动扩展同义词：
-- 规则：单个英文 < 4 字符 → 补 2-3 同义词用 `+` 连接；中文 → 同时准备英文翻译
-- 示例：`prd` → `PRD+product+requirement+specification`，`db` → `database+sql+sqlite+mysql`
+从用户描述中提取中英文搜索关键词。**按渠道分别处理**：
+
+| 渠道 | 关键词格式 | 示例 |
+|------|-----------|------|
+| `npx skills find` | 原始关键词，空格分隔 | `prd` 或 `pr review` |
+| GitHub API | 同义词用 `+` 连接（AND 语义） | `PRD+product+requirement` |
+| WebSearch | 自然语言短语 | `claude skill for PRD writing` |
+
+短关键词（≤3 字母）触发同义词扩展（仅 GitHub API 和 WebSearch）：`prd` → `PRD+product+requirement`，`db` → `database+sql+sqlite`。`npx skills find` 始终用原始关键词。
 
 ### 2. 并行搜索（4 路同时发起）
 
 | 渠道 | 命令 | 降级 |
 |------|------|------|
-| GitHub API（核心） | `gh api "search/code?q=[query]+filename:SKILL.md+allowed-tools&per_page=10" --jq '.items[] | "\(.repository.full_name)\|\(.path)\|\(.repository.stargazers_count)"'` | WebSearch `github "SKILL.md" claude skill [query]` |
-| skills.sh | `npx skills find "[query]" 2>&1 \| head -30` | 超时 → WebSearch `site:skills.sh [query]` |
+| skills.sh（核心） | `npx skills find "[原始关键词]" 2>&1 \| head -30` | 超时 → WebSearch `site:skills.sh [query]` |
+| GitHub API | `gh api "search/code?q=[同义词query]+filename:SKILL.md+allowed-tools&per_page=10" --jq '.items[] | "\(.repository.full_name)\|\(.path)\|\(.repository.stargazers_count)"'` | WebSearch `github "SKILL.md" claude skill [query]` |
 | WebSearch×3 | `awesome claude skills [query] 2026`、`openclaw skill [query] github`、`site:skillsmp.com [query] claude skill` | — |
 | 本地已安装 | `ls ~/.claude/skills/` + `cat ~/.claude/skills/.skill-lock.json` | — |
 
-> GitHub API 的 `search/code` 返回 `repository.stargazers_count`，一次调用即可获取 stars，无需额外查询。
+> skills.sh 是最稳定的数据源，直接返回 skill 名称、来源、安装量。GitHub API 的 `search/code` 搜文件内容但**不返回 stars**，需额外查询（见第 3 步）。
 
-### 3. 补充 stars（仅非 GitHub 渠道结果）
+### 3. 补充 Stars（单次 Bash 调用）
 
-对缺少 stars 的仓库，优先 `gh api "repos/$r" --jq '.stargazers_count'`，`gh` 不可用时 WebSearch `"[repo] github stars"` 提取。
+> `search/code` 的 repository 对象是精简版，**不包含** `stargazers_count`（见 GitHub 文档）。需单独查询。
+
+合并所有渠道结果后，提取去重的唯一仓库，**单次 Bash 调用**批量获取 stars：
+```bash
+for r in owner1/repo1 owner2/repo2 owner3/repo3; do echo "$r $(gh api "repos/$r" --jq '.stargazers_count' 2>/dev/null || echo -)"; done
+```
+> 只查 top 10 结果涉及的唯一仓库（通常 3-5 个）。同一仓库的多个 skill 共享 stars。`gh` 不可用时跳过，stars 显示 `-`。
+
+**安装量获取**：`npx skills find` 输出中直接包含（如 `5.9K installs`），无需额外查询。
+
+**去重**：合并所有渠道结果，按 `owner/repo@skill名` 去重，保留数据最完整的条目。
 
 ### 4. 筛选排序
 
 1. 去掉已安装 → 仅在"已安装"区域展示
 2. 过滤不相关 → 文件名碰巧含关键词但功能不匹配的
-3. 按 stars 排序 → 取 top 10
+3. 综合排序 → 取 top 10：
+   - 主排序：安装数量降序
+   - 次排序：stars 降序
+   - 末排序：skill 名称字母序
 
-**可信度分级**（同时用于筛选和输出展示）：
+**可信度分级**（按优先级判定：官方 > 高信誉 > 良好 > 一般）：
 
 | 等级 | 标识 | 条件 |
 |------|------|------|
-| 官方 | 🟢🟢 | anthropics、vercel-labs、microsoft |
-| 高信誉 | 🟢 | stars > 1000 或安装量 > 10K |
-| 良好 | 🟡 | stars 100-1000，安装量 > 1K，或 awesome 收录 |
-| 一般 | 🔵 | stars < 100 或无数据 |
+| 官方 | 🟢🟢 | 仓库 owner 为 anthropics、vercel-labs、microsoft、openai、figma |
+| 高信誉 | 🟢 | stars ≥ 1000 或安装量 ≥ 10K |
+| 良好 | 🟡 | 100 ≤ stars < 1000，或 1K ≤ 安装量 < 10K，或 awesome 收录 |
+| 一般 | 🔵 | stars < 100 且安装量 < 1K |
 
 > stars 为仓库级别，非 skill 自身。同一仓库的多个 skill 共享 stars 数值。
 
@@ -58,35 +77,29 @@ allowed-tools:
 
 ### 5. 格式化输出
 
-**对齐规则**：表格使用 Unicode box-drawing（`┌─┬─┐│├─┼─┤└─┴─┘`），按显示宽度对齐（CJK/Emoji 占 2 列，ASCII 占 1 列）。先计算每列最大宽度，再统一左对齐。
+**使用列表格式**，每条 skill 一行，字段用固定分隔符对齐：
 
 ```
-═══════════════════════════════════════════════════
-  🔍 Skill Hunter：「[关键词]」（全量模式）
-  耗时：~Xs
-═══════════════════════════════════════════════════
+🔍 Skill Hunter：「[关键词]」（全渠道搜索）
 
 ## 已安装
-
-┌──────────────┬────────────────────────┐
-│ Skill        │ 来源                   │
-├──────────────┼────────────────────────┤
-│ write-a-prd  │ mattpocock/skills      │
-└──────────────┴────────────────────────┘
+- write-a-prd | mattpocock/skills
 
 ## 未安装
-
-┌────┬──────────────┬──────────────────────┬────────┬────────┬──────────────────────────────┐
-│ #  │ Skill        │ 来源                 │ Stars  │ 可信度 │ 描述                         │
-├────┼──────────────┼──────────────────────┼────────┼────────┼──────────────────────────────┤
-│  1 │ prd          │ Mehdibargach/...      │  87 ⭐  │  🟡    │ 精简结构化 PRD 生成            │
-│  2 │ easy-prd     │ instantX-research/... │  11 ⭐  │  🔵    │ 简易 PRD                     │
-└────┴──────────────┴──────────────────────┴────────┴────────┴──────────────────────────────┘
+ 1. prd | Mehdibargach/skill-repo | 安装 5.9K | ⭐ 87 | 🟢 | 精简结构化 PRD 生成
+ 2. easy-prd | instantX-research/... | 安装 200 | ⭐ 11 | 🔵 | 简易 PRD
 
 输入编号选择要安装的 skill（多选用逗号，如 1,3），或输入 q 退出。
-
-═══════════════════════════════════════════════════
 ```
+
+**输出规则**：
+- 已安装和未安装分开展示，已安装在前
+- 未安装每条格式：`编号. skill名 | 来源 | 安装 数量 | ⭐ 数量 | 可信度emoji | 描述`
+- 安装量格式：`5.9K`、`1.2K`、`200`；无数据时省略该字段
+- Stars 格式：`⭐ 87`；无数据时省略该字段
+- 可信度 emoji：🟢🟢、🟢、🟡、🔵
+- 描述截断到 30 字符，超出用 `…` 结尾
+- 来源过长时截断为 `owner/rep...`
 
 > **已安装的 skill 必须排在最前面**。
 
