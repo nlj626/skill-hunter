@@ -11,23 +11,20 @@ allowed-tools:
 
 # Skill Hunter — 全渠道 Claude Code Skill 搜索器
 
-工作流程：**搜索展示 → 用户选择 → 安装**。安全审查建议使用 `skill-vetter`。
+工作流程：**首次配置 → 搜索展示 → 用户选择 → 安装**。安全审查建议使用 `skill-vetter`。
 
 ## 首次配置
 
-搜索前检查 `~/.claude/skills/skill-hunter/config.json`：
+检查 `~/.claude/skills/skill-hunter/config.json`，**文件不存在时使用 AskUserQuestion 一次性询问**：
 
-- **文件不存在** → 询问用户：
-  > "是否配置 API Key 以加速搜索？（可跳过，跳过后使用 WebSearch）
-  > - SkillsMP API Key（免费注册：skillsmp.com/docs/api）
-  > - ClawHub Token（clawhub CLI 登录获取）
-  > 输入 Key 或输入 s 跳过"
-- **用户提供 Key** → 保存到 config.json
-- **用户输入 s** → 保存 `{"asked":true}` → 后续不再询问
+- **问题 1**：`SkillsMP API Key（免费注册：skillsmp.com/docs/api），输入 Key 或输入 s 跳过`
+- **问题 2**：`ClawHub Token（clawhub CLI 登录获取），输入 Token 或输入 s 跳过`
 
-config.json 格式：`{"asked":true, "skillsmp_key":"...", "clawhub_token":"..."}`
+用户回复后创建 config.json 并立即开始搜索：`{"asked":true, "skillsmp_key":"...", "clawhub_token":"..."}`
 
 ## 搜索执行
+
+全量搜索，目标 **30 秒内**出结果（主流程并行执行，无 Agent）。
 
 ### 1. 解析关键词
 
@@ -43,18 +40,20 @@ config.json 格式：`{"asked":true, "skillsmp_key":"...", "clawhub_token":"..."
 
 ### 2. 并行搜索（6 路同时发起）
 
+**所有 6 路必须在同一次响应中并行发起，不得串行。**
+
 读取 config.json 中的 Key，决定 ClawHub 和 SkillsMP 的调用方式：
 
 | 渠道 | 有 Key | 无 Key（回退） |
 |------|--------|---------------|
 | skills.sh（核心） | `npx skills find "[关键词]" 2>&1 \| head -30` | 同左 |
 | GitHub API | `gh api "search/code?q=[同义词]+filename:SKILL.md+allowed-tools&per_page=10" --jq '.items[] \| "\(.repository.full_name)\|\(.path)"'` | 同左 |
-| ClawHub | `curl -s -H "Authorization: Bearer [token]" "https://clawhub.ai/api/v1/search?q=[关键词]&limit=10"` | WebSearch `"clawhub [关键词] claude skill"` |
-| SkillsMP | `curl -s -H "Authorization: Bearer [key]" "https://skillsmp.com/api/v1/skills/search?q=[关键词]&limit=10"` | WebSearch `"skillsmp [关键词] claude skill"` |
+| ClawHub | `curl -s --max-time 10 -H "Authorization: Bearer [token]" "https://clawhub.ai/api/v1/search?q=[关键词]&limit=10"` | WebSearch `"clawhub [关键词] claude skill"` |
+| SkillsMP | `curl -s --max-time 10 -H "Authorization: Bearer [key]" "https://skillsmp.com/api/v1/skills/search?q=[关键词]&limit=10"` | WebSearch `"skillsmp [关键词] claude skill"` |
 | awesome | WebSearch `"awesome claude skills [关键词] github 2026"` | 同左 |
 | 本地已安装 | Glob `~/.claude/skills/*/SKILL.md` | 同左 |
 
-> 6 路并行，无 Agent。GitHub API 降级为 WebSearch `"github SKILL.md claude skill [关键词]"`。
+> 6 路并行，无 Agent。curl 超时 10 秒视为该渠道无结果。GitHub API 降级为 WebSearch `"github SKILL.md claude skill [关键词]"`。
 
 ### 3. 合并与 Stars
 
@@ -156,6 +155,6 @@ tmpdir=$(mktemp -d) && git clone --depth=1 https://github.com/[owner]/[repo].git
 | `gh` 未安装 | 跳过 GitHub API 和 stars，仅用其他渠道 |
 | `gh api` 限流 | 回退 WebSearch |
 | `npx` 未安装 | 仅 GitHub API + WebSearch，安装限 B/C |
-| curl API 失败 | 回退 WebSearch |
+| curl API 超时/失败 | 跳过该渠道，不影响其他 |
 | 所有渠道失败 | 提示检查网络后重试 |
 | 无结果 | 建议换关键词或 `npx skills init` 自建 |
