@@ -10,16 +10,20 @@ allowed-tools:
 
 > **First action**: Run `cat ~/.claude/skills/skill-hunter/config.json 2>/dev/null`
 > If empty (first use) → Ask for API keys below, save config.json, then start search
-> If non-empty → Skip setup, go directly to search with the user's keyword
+> If non-empty → Skip setup, go directly to search
+>
+> **No keyword?** If user invoked `/skill-hunter` without a keyword (e.g. just `/skill-hunter`), ask "What skill are you looking for?" before searching.
+>
+> **Language**: Match the user's language. If user speaks Chinese, reply in Chinese. Default: English. Do NOT mix languages in one response.
 
 # Skill Hunter — Multi-Channel Skill Search
 
 ## First-Time Setup (config.json missing only)
 
-Ask in plain text (two rounds):
+Ask ONE question at a time. Show question 1, STOP and wait for user response, then show question 2. Do NOT show both questions in one response.
 
-1. "Enter your SkillsMP API Key (free at skillsmp.com/docs/api), or type `s` to skip:"
-2. "Enter your ClawHub Token (via `clawhub` CLI login), or type `s` to skip:"
+1. "Enter your SkillsMP API Key (free at skillsmp.com/docs/api), or type `s` to skip:" → **STOP HERE. Wait for user input.**
+2. "Enter your ClawHub Token (via `clawhub` CLI login), or type `s` to skip:" → **STOP HERE. Wait for user input.**
 
 Save with one Bash command (do NOT overthink, just run it):
 ```bash
@@ -30,7 +34,7 @@ If user skipped both: `echo '{"asked":true}' > ~/.claude/skills/skill-hunter/con
 
 Then say: "Config saved. You can manually edit `~/.claude/skills/skill-hunter/config.json` later."
 
-**After saving, immediately start searching with the user's keyword. Do NOT wait for another input.**
+**After saving, if user provided a keyword → immediately start search. If no keyword → ask "What skill are you looking for?"**
 
 ## Search
 
@@ -89,22 +93,28 @@ for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.starg
 
 ### 5. Output Format
 
-**Both "Installed" and "Not Installed" use the SAME single-line format.** Do NOT use table or multi-line format.
+Use **markdown table** format for BOTH sections — same columns, same alignment. Installed section MUST include all columns (Source, Installs, Stars, Trust, Description), do NOT simplify or omit columns for installed skills.
 
 ```
 🔍 Skill Hunter: "[keyword]" (multi-channel)
 
 ## Installed
- ✓ pptx | anthropics/skills | 75.7K installs | ⭐ 121886 | 🟢🟢 | PPTX generation
+
+| Skill | Source | Installs | Stars | Trust | Description |
+|-------|--------|----------|-------|-------|-------------|
+| ✓ pptx | anthropics/skills | 75.7K | ⭐ 121886 | 🟢🟢 | PPTX generation |
 
 ## Not Installed
- 1. pptx | github/awesome-copilot | 15.4K installs | ⭐ 30639 | 🟢 | PPTX generation
- 2. easy-prd | instantX-research/... | 200 installs | ⭐ 11 | 🔵 | Simple PRD
+
+| # | Skill | Source | Installs | Stars | Trust | Description |
+|---|-------|--------|----------|-------|-------|-------------|
+| 1 | pptx | github/awesome-copilot | 15.4K | ⭐ 30639 | 🟢 | PPTX generation |
+| 2 | easy-prd | instantX-research/... | 200 | ⭐ 11 | 🔵 | Simple PRD |
 
 Enter number(s) to install (comma-separated, e.g. 1,3), or q to quit.
 ```
 
-Format per line: `✓/number. name | source | N installs (omit if missing) | ⭐ N (omit if missing) | trust badge | description (max 30 chars, use `-` if missing)`
+Rules: omit columns with no data (installs/stars). Trust badge always shown. Description max 30 chars, `-` if missing.
 
 ---
 

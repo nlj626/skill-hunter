@@ -50,10 +50,21 @@ Copy-Item SKILL.md "$env:USERPROFILE\.claude\skills\skill-hunter\"
 
 ### 展示格式
 
-列表格式，每条 skill 一行：
+Markdown 表格格式，已安装和未安装 skill 使用相同的列结构：
+
 ```
- 1. prd | github/awesome-copilot | 安装 15.4K | ⭐ 30639 | 🟢 | PRD 生成与管理
- 2. write-a-prd | mattpocock/skills | 安装 14.2K | ⭐ 16733 | 🟢 | 结构化 PRD 编写
+## Installed
+
+| Skill | Source | Installs | Stars | Trust | Description |
+|-------|--------|----------|-------|-------|-------------|
+| ✓ pptx | anthropics/skills | 75.7K | ⭐ 121886 | 🟢🟢 | PPTX generation |
+
+## Not Installed
+
+| # | Skill | Source | Installs | Stars | Trust | Description |
+|---|-------|--------|----------|-------|-------|-------------|
+| 1 | pptx | github/awesome-copilot | 15.4K | ⭐ 30639 | 🟢 | PPTX generation |
+| 2 | easy-prd | instantX-research/... | 200 | ⭐ 11 | 🔵 | Simple PRD |
 ```
 
 ### 安装方式

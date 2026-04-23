@@ -9,34 +9,38 @@ allowed-tools:
 ---
 
 > **首先执行**：`cat ~/.claude/skills/skill-hunter/config.json 2>/dev/null`
-> 输出为空（首次使用）→ 询问 Key → 保存 → 等待用户提供搜索关键词
-> 输出非空 → 跳过本段，直接执行下方搜索流程
+> 输出为空（首次使用）→ 询问 Key → 保存 → 执行搜索
+> 输出非空 → 跳过本段，直接执行搜索流程
+>
+> **无关键词？** 如果用户只输入 `/skill-hunter` 没带关键词，先问 "你想搜索什么 skill？" 再搜索。
+>
+> **语言**：跟随用户使用的语言。用户用中文则用中文回复，用英语则用英语回复。默认英语。不要在一条回复中混用语言。
 
 # Skill Hunter — 全渠道 Claude Code Skill 搜索器
 
-## 首次配置
+## 首次配置（config.json 不存在时）
 
-config.json 不存在时，分两次文字询问：
+每次只问一个问题。显示问题 1 后停止等待用户回复，再显示问题 2。不要在同一条回复中显示两个问题。
 
-1. "请输入 SkillsMP API Key（免费注册：skillsmp.com/docs/api），或输入 s 跳过：" → 用户回复后记录
-2. "请输入 ClawHub Token（clawhub CLI 登录获取），或输入 s 跳过：" → 用户回复后记录
+1. "请输入 SkillsMP API Key（免费注册：skillsmp.com/docs/api），或输入 s 跳过：" → **停止，等待用户输入。**
+2. "请输入 ClawHub Token（clawhub CLI 登录获取），或输入 s 跳过：" → **停止，等待用户输入。**
 
-两次都完成后保存 `~/.claude/skills/skill-hunter/config.json`：
-```json
-{"asked":true,"skillsmp_key":"用户输入或空","clawhub_token":"用户输入或空"}
+用一条 Bash 命令保存（不要多想，直接执行）：
+```bash
+mkdir -p ~/.claude/skills/skill-hunter && echo '{"asked":true,"skillsmp_key":"[用户输入或空]","clawhub_token":"[用户输入或空]"}' > ~/.claude/skills/skill-hunter/config.json
 ```
 
-**配置完成后输出**：`✅ 配置完成！请输入要搜索的 skill 关键词（如 ppt、docker、PRD）。`
+如果两个都跳过：`echo '{"asked":true}' > ~/.claude/skills/skill-hunter/config.json`
 
-**不要自动搜索，等用户输入关键词后再执行搜索流程。**
+然后说："配置已保存。后续可手动编辑 `~/.claude/skills/skill-hunter/config.json`。"
+
+**保存后，如果用户提供了关键词 → 立即搜索。如果没有关键词 → 问 "你想搜索什么 skill？"**
 
 ## 搜索执行
 
-全量搜索，目标 **30 秒内**出结果（主流程并行执行，无 Agent）。
+目标 **30 秒**。全量并行，无 Agent 子进程。
 
 ### 1. 解析关键词
-
-从用户描述中提取中英文搜索关键词，按渠道分别处理：
 
 | 渠道 | 关键词格式 | 示例 |
 |------|-----------|------|
@@ -54,14 +58,14 @@ config.json 不存在时，分两次文字询问：
 
 | 渠道 | 有 Key | 无 Key（回退） |
 |------|--------|---------------|
-| skills.sh（核心） | `npx skills find "[关键词]" 2>&1 \| head -30` | 同左 |
+| skills.sh | `npx skills find "[关键词]" 2>&1 \| head -30` | 同左 |
 | GitHub API | `gh api "search/code?q=[同义词]+filename:SKILL.md+allowed-tools&per_page=10" --jq '.items[] \| "\(.repository.full_name)\|\(.path)"'` | 同左 |
-| ClawHub | `curl -s --max-time 10 -H "Authorization: Bearer [token]" "https://clawhub.ai/api/v1/search?q=[关键词]&limit=10"` | WebSearch `"clawhub [关键词] claude skill"` |
-| SkillsMP | `curl -s --max-time 10 -H "Authorization: Bearer [key]" "https://skillsmp.com/api/v1/skills/search?q=[关键词]&limit=10"` | WebSearch `"skillsmp [关键词] claude skill"` |
+| ClawHub | `curl -s --max-time 10 -H "Authorization: Bearer [token]" "https://clawhub.ai/api/v1/search?q=[关键词]&limit=10" 2>/dev/null` | WebSearch `"clawhub [关键词] claude skill"` |
+| SkillsMP | `curl -s --max-time 10 -H "Authorization: Bearer [key]" "https://skillsmp.com/api/v1/skills/search?q=[关键词]&limit=10" 2>/dev/null` | WebSearch `"skillsmp [关键词] claude skill"` |
 | awesome | WebSearch `"awesome claude skills [关键词] github 2026"` | 同左 |
 | 本地已安装 | Glob `~/.claude/skills/*/SKILL.md` | 同左 |
 
-> 6 路并行，无 Agent。curl 超时 10 秒视为该渠道无结果。GitHub API 降级为 WebSearch `"github SKILL.md claude skill [关键词]"`。
+> curl 超时或报错 → 静默跳过该渠道（不要向用户显示错误）。GitHub API 降级为 WebSearch `"github SKILL.md claude skill [关键词]"`。
 
 ### 3. 合并与 Stars
 
@@ -73,8 +77,8 @@ config.json 不存在时，分两次文字询问：
 ```bash
 for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.stargazers_count' 2>/dev/null || echo -)"; done
 ```
-- 404 → 直接跳过，不验证
-- 非 GitHub 格式（如 `smithery.ai`）→ 不查 stars，标记"非 GitHub"
+- 404 → 直接跳过
+- 非 GitHub 格式 → 标记"非 GitHub"，不查 stars
 - `gh` 未安装 → 所有 stars 显示 `-`
 
 ### 4. 筛选排序
@@ -84,29 +88,37 @@ for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.starg
 3. 综合排序 → 取 top 10：
    - 主排序：安装量降序（缺失视为 0）
    - 次排序：stars 降序
-   - 末排序：可信度（官方 > 高信誉 > 良好 > 一般）
+   - 末排序：可信度
    - 最终：skill 名称字母序
 
-**可信度**：官方🟢🟢（anthropics/vercel-labs/microsoft/openai/figma）> 高信誉🟢（stars≥1K 或安装量≥10K）> 良好🟡（stars≥100 或安装量≥1K）> 一般🔵
+**可信度**（必须严格按规则判断，不得猜测）：官方🟢🟢（anthropics/vercel-labs/microsoft/openai/figma）> 高信誉🟢（stars≥1K 或安装量≥10K）> 良好🟡（stars≥100 或安装量≥1K）> 一般🔵
 
 筛选后 0 个 → 放宽纳入 🔵（最多 3 个，标注"质量较低"）。
 
 ### 5. 格式化输出
 
+已安装和未安装使用 **相同的 markdown 表格格式**。已安装部分也必须包含所有列（来源、安装量、Stars、可信度、描述），不得简化。
+
 ```
 🔍 Skill Hunter：「[关键词]」（全渠道搜索）
 
 ## 已安装
- ✓ pptx | anthropics/skills | 安装 75.7K | ⭐ 121886 | 🟢🟢 | PPTX 生成
+
+| Skill | 来源 | 安装量 | Stars | 可信度 | 描述 |
+|-------|------|--------|-------|--------|------|
+| ✓ pptx | anthropics/skills | 75.7K | ⭐ 121886 | 🟢🟢 | PPTX 生成 |
 
 ## 未安装
- 1. pptx | github/awesome-copilot | 安装 15.4K | ⭐ 30639 | 🟢 | PPTX 生成与管理
- 2. easy-prd | instantX-research/... | 安装 200 | ⭐ 11 | 🔵 | 简易 PRD
+
+| # | Skill | 来源 | 安装量 | Stars | 可信度 | 描述 |
+|---|-------|------|--------|-------|--------|------|
+| 1 | pptx | github/awesome-copilot | 15.4K | ⭐ 30639 | 🟢 | PPTX 生成与管理 |
+| 2 | easy-prd | instantX-research/... | 200 | ⭐ 11 | 🔵 | 简易 PRD |
 
 输入编号选择要安装的 skill（多选用逗号，如 1,3），或输入 q 退出。
 ```
 
-**规则**：安装量格式 `5.9K`/`200`，无数据省略；Stars `⭐ 87`，无数据省略；描述截断 30 字符。
+规则：无数据的列省略（安装量/Stars）。可信度标识始终显示。描述截断 30 字符，无数据用 `-`。
 
 ---
 
@@ -114,14 +126,16 @@ for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.starg
 
 **触发**：用户输入编号（如 `1` 或 `1,3`）。多个 skill 顺序安装。
 
-### 1. 确认 + 判定安装方式
+### 1. 确认
 
 ```
-即将安装以下 skill：
+即将安装：
 1. prd (来自 Mehdibargach/...) — npx skills add ...
 
 确认安装？（y/n）
 ```
+
+### 2. 安装方式
 
 | 条件 | 方式 | 命令 |
 |------|------|------|
@@ -129,8 +143,6 @@ for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.starg
 | GitHub，SKILL.md 在子目录 | B | sparse clone |
 | GitHub，SKILL.md 在根目录 | C | shallow clone |
 | 非以上 | A 优先，失败回退 C | — |
-
-### 2. 执行安装
 
 安装前检查 `ls ~/.claude/skills/[skill-name]/SKILL.md`，已存在则提示覆盖或跳过。
 
@@ -163,6 +175,6 @@ tmpdir=$(mktemp -d) && git clone --depth=1 https://github.com/[owner]/[repo].git
 | `gh` 未安装 | 跳过 GitHub API 和 stars，仅用其他渠道 |
 | `gh api` 限流 | 回退 WebSearch |
 | `npx` 未安装 | 仅 GitHub API + WebSearch，安装限 B/C |
-| curl API 超时/失败 | 跳过该渠道，不影响其他 |
+| curl API 超时/失败 | 静默跳过该渠道，不向用户显示错误 |
 | 所有渠道失败 | 提示检查网络后重试 |
 | 无结果 | 建议换关键词或 `npx skills init` 自建 |
