@@ -9,14 +9,14 @@ allowed-tools:
 ---
 
 > **First action**: Run `cat ~/.claude/skills/skill-hunter/config.json 2>/dev/null`
-> Empty output (first use) → Ask for API keys → Save → Wait for user's search keyword
-> Non-empty output → Skip setup, go directly to search
+> If empty (first use) → Ask for API keys below, save config.json, then start search
+> If non-empty → Skip setup, go directly to search with the user's keyword
 
 # Skill Hunter — Multi-Channel Skill Search
 
-## First-Time Setup
+## First-Time Setup (config.json missing only)
 
-If config.json doesn't exist, ask in plain text (two rounds):
+Ask in plain text (two rounds):
 
 1. "Enter your SkillsMP API Key (free at skillsmp.com/docs/api), or type `s` to skip:"
 2. "Enter your ClawHub Token (via `clawhub` CLI login), or type `s` to skip:"
@@ -26,9 +26,9 @@ Save to `~/.claude/skills/skill-hunter/config.json`:
 {"asked":true,"skillsmp_key":"...","clawhub_token":"..."}
 ```
 
-After saving, output: `✅ Setup complete! Enter a skill keyword to search (e.g. ppt, docker, PRD).`
+If user skipped: "Skipped. You can manually create `~/.claude/skills/skill-hunter/config.json` later to enable API search."
 
-**Do NOT auto-search. Wait for the user to provide a keyword.**
+**After saving, immediately start searching with the user's keyword. Do NOT wait for another input.**
 
 ## Search
 
