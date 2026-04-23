@@ -25,6 +25,8 @@ Ask ONE question at a time. Show question 1, STOP and wait for user response, th
 1. "Enter your SkillsMP API Key (free at skillsmp.com/docs/api), or type `s` to skip:" → **STOP HERE. Wait for user input.**
 2. "Enter your ClawHub Token (via `clawhub` CLI login), or type `s` to skip:" → **STOP HERE. Wait for user input.**
 
+Collect BOTH answers first, then save config.json ONCE. Do NOT save after each question.
+
 Save with one Bash command (do NOT overthink, just run it):
 ```bash
 mkdir -p ~/.claude/skills/skill-hunter && echo '{"asked":true,"skillsmp_key":"[user input or empty]","clawhub_token":"[user input or empty]"}' > ~/.claude/skills/skill-hunter/config.json

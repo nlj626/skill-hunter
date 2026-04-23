@@ -25,7 +25,7 @@ allowed-tools:
 1. "请输入 SkillsMP API Key（免费注册：skillsmp.com/docs/api），或输入 s 跳过：" → **停止，等待用户输入。**
 2. "请输入 ClawHub Token（clawhub CLI 登录获取），或输入 s 跳过：" → **停止，等待用户输入。**
 
-用一条 Bash 命令保存（不要多想，直接执行）：
+收齐两个输入后，一次性保存 config.json。不要每问一个就写一次。
 ```bash
 mkdir -p ~/.claude/skills/skill-hunter && echo '{"asked":true,"skillsmp_key":"[用户输入或空]","clawhub_token":"[用户输入或空]"}' > ~/.claude/skills/skill-hunter/config.json
 ```
