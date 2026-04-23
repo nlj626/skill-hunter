@@ -21,12 +21,14 @@ Ask in plain text (two rounds):
 1. "Enter your SkillsMP API Key (free at skillsmp.com/docs/api), or type `s` to skip:"
 2. "Enter your ClawHub Token (via `clawhub` CLI login), or type `s` to skip:"
 
-Save to `~/.claude/skills/skill-hunter/config.json`:
-```json
-{"asked":true,"skillsmp_key":"...","clawhub_token":"..."}
+Save with one Bash command (do NOT overthink, just run it):
+```bash
+mkdir -p ~/.claude/skills/skill-hunter && echo '{"asked":true,"skillsmp_key":"[user input or empty]","clawhub_token":"[user input or empty]"}' > ~/.claude/skills/skill-hunter/config.json
 ```
 
-If user skipped: "Skipped. You can manually create `~/.claude/skills/skill-hunter/config.json` later to enable API search."
+If user skipped both: `echo '{"asked":true}' > ~/.claude/skills/skill-hunter/config.json`
+
+Then say: "Config saved. You can manually edit `~/.claude/skills/skill-hunter/config.json` later."
 
 **After saving, immediately start searching with the user's keyword. Do NOT wait for another input.**
 
@@ -54,12 +56,12 @@ Read config.json for keys, then:
 |---------|---------|-------------------|
 | skills.sh | `npx skills find "[keyword]" 2>&1 \| head -30` | same |
 | GitHub API | `gh api "search/code?q=[synonyms]+filename:SKILL.md+allowed-tools&per_page=10" --jq '.items[] \| "\(.repository.full_name)\|\(.path)"'` | same |
-| ClawHub | `curl -s --max-time 10 -H "Authorization: Bearer [token]" "https://clawhub.ai/api/v1/search?q=[keyword]&limit=10"` | WebSearch `"clawhub [keyword] claude skill"` |
-| SkillsMP | `curl -s --max-time 10 -H "Authorization: Bearer [key]" "https://skillsmp.com/api/v1/skills/search?q=[keyword]&limit=10"` | WebSearch `"skillsmp [keyword] claude skill"` |
+| ClawHub | `curl -s --max-time 10 -H "Authorization: Bearer [token]" "https://clawhub.ai/api/v1/search?q=[keyword]&limit=10" 2>/dev/null` | WebSearch `"clawhub [keyword] claude skill"` |
+| SkillsMP | `curl -s --max-time 10 -H "Authorization: Bearer [key]" "https://skillsmp.com/api/v1/skills/search?q=[keyword]&limit=10" 2>/dev/null` | WebSearch `"skillsmp [keyword] claude skill"` |
 | awesome | WebSearch `"awesome claude skills [keyword] github 2026"` | same |
 | Local | Glob `~/.claude/skills/*/SKILL.md` | same |
 
-> curl timeout = 10s → skip that channel. GitHub API fallback: WebSearch `"github SKILL.md claude skill [keyword]"`.
+> curl timeout or error → skip that channel silently (do NOT show error to user). GitHub API fallback: WebSearch `"github SKILL.md claude skill [keyword]"`.
 
 ### 3. Merge & Stars
 
@@ -81,11 +83,13 @@ for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.starg
 2. Remove irrelevant matches
 3. Sort top 10 by: installs ↓ → stars ↓ → credibility → name A-Z
 
-**Credibility**: Official 🟢🟢 (anthropics/vercel-labs/microsoft/openai/figma) > Trusted 🟢 (stars≥1K or installs≥10K) > Good 🟡 (stars≥100 or installs≥1K) > Average 🔵
+**Credibility** (MUST follow strictly, do not guess): Official 🟢🟢 (anthropics/vercel-labs/microsoft/openai/figma) > Trusted 🟢 (stars≥1K or installs≥10K) > Good 🟡 (stars≥100 or installs≥1K) > Average 🔵
 
 0 results → relax to include 🔵 (max 3, mark "lower quality").
 
 ### 5. Output Format
+
+**Both "Installed" and "Not Installed" use the SAME single-line format.** Do NOT use table or multi-line format.
 
 ```
 🔍 Skill Hunter: "[keyword]" (multi-channel)
@@ -100,7 +104,7 @@ for r in owner1/repo1 owner2/repo2; do echo "$r $(gh api "repos/$r" --jq '.starg
 Enter number(s) to install (comma-separated, e.g. 1,3), or q to quit.
 ```
 
-Rules: installs format `5.9K`/`200`, omit if missing; stars `⭐ 87`, omit if missing; description capped at 30 chars.
+Format per line: `✓/number. name | source | N installs (omit if missing) | ⭐ N (omit if missing) | trust badge | description (max 30 chars, use `-` if missing)`
 
 ---
 
@@ -157,6 +161,6 @@ Verify with `ls ~/.claude/skills/[name]/SKILL.md` (must contain frontmatter).
 | `gh` not installed | Skip GitHub API + stars, use other channels |
 | `gh api` rate-limited | Fallback to WebSearch |
 | `npx` not installed | GitHub API + WebSearch only; install limited to B/C |
-| curl API timeout/fail | Skip channel, no impact on others |
+| curl API timeout/fail | Skip channel silently, no error output to user |
 | All channels fail | Suggest checking network |
 | No results | Suggest different keyword or `npx skills init` |
